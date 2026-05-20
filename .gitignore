@@ -1,0 +1,35 @@
+# Nuxt dev/build outputs
+.output
+.data
+.nuxt
+.nitro
+.cache
+dist
+
+# Node dependencies
+node_modules
+
+# Logs
+logs
+*.log
+
+# Misc
+.DS_Store
+.fleet
+.idea
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Local env files
+# .env
+# .env.*
+# !.env.example
+
+# husky
+.husky
+
+# Playwright
+test/e2e/test-results/
+test/e2e/screenshots/
+playwright-report/

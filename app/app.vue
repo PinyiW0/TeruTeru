@@ -1,6 +1,14 @@
+<script setup lang="ts">
+const { tweaks } = useTweaks()
+</script>
+
 <template>
-  <div>
+  <div
+    :data-theme="tweaks.themeColor"
+    :data-font="tweaks.fontStyle"
+    :data-style="tweaks.visualStyle"
+  >
     <NuxtRouteAnnouncer />
-    <NuxtWelcome />
+    <NuxtPage />
   </div>
 </template>

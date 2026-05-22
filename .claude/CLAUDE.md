@@ -30,6 +30,23 @@ Spec-Driven Development：從 Feature 規格驅動開發。
 
 ---
 
+## Vibe UI 守則（v2）
+
+**主 spec 真理是 `test/e2e/specs/*.spec.ts`**——跑 `npx playwright test` 就知道有沒踩線。業務合約定義於對應的 `spec/e2e-flows/*.flow.md` 的 **Business Invariants** 段。
+
+修改 `app/pages/`、`app/components/`、`app/layouts/` 時，必須遵守：
+
+- **不得破壞 Business Invariants**：實體必須可被使用者識別（用業務語意如 username、playerName、deviceId）、業務狀態文字必須保留語意（「連線中」「已斷線」「進行中」「已結束」「建立成功」「已刪除」等）、業務操作必須可被觸發（不一定要按鈕，但要有可達路徑）
+- **不得修改** `test/e2e/specs/`（主 spec 凍結，SSOT 政策）
+- **不得修改** `spec/gherkin-feature/`、`spec/e2e-flows/`（主 spec 來源凍結）
+- **vibe 完 commit 前必跑** `npx playwright test`（綠燈 = vibe 安全）
+
+可以自由改：顏色、間距、字體、icon、layout、按鈕位置與形式（toolbar / icon-only / menu）、modal vs inline form、列表呈現（table / card / list）、折疊、動畫、新增 testid（建議 `vibe-*` 前綴）、新增頁面與互動。
+
+如果你發現非破壞合約無法達成 vibe 目標，**停下來問使用者**，不要擅自改主 spec。
+
+---
+
 ## 可用指令
 
 | 指令 | 用途 | 前置條件 |
@@ -37,6 +54,9 @@ Spec-Driven Development：從 Feature 規格驅動開發。
 | `/feature-to-api` | Feature → 型別定義 + Mock API | `.flow.md` 已放入 `spec/e2e-flows/` |
 | `/feature-to-ui` | Feature → 完整 UI 畫面 | `/feature-to-api` 已完成 |
 | `/test e2e` | E2E 測試開發流程 | `.flow.md` 已放入 `spec/e2e-flows/` |
+| `/vibe-check` | 最小主 spec 守門 — 跑 `npx playwright test`，紅燈時對照 flow.md invariant | vibe 完 UI 後、commit 前 |
+| `/vibe-setup` | UI 分層 — 將 vibe diff 分類為 visual / 互動 / 結構，並標記測試 pattern | `/vibe-check` 綠燈 |
+| `/vibe-e2e` | 依 pattern 自動生成 `test/e2e/vibe/*.spec.ts` 並跑（用 `playwright.vibe.config.ts`） | `/vibe-check` 綠燈 |
 | `/nuxt-ui` | 載入 NuxtUI 官方文檔 | 無 |
 
 ---
@@ -48,6 +68,7 @@ Spec-Driven Development：從 Feature 規格驅動開發。
 | 程式碼品質驗證 | [rules/code-quality.md](rules/code-quality.md) | 修改 app/、server/ 程式碼時 |
 | UI 實作規範 | [rules/ui-conventions.md](rules/ui-conventions.md) | 修改 pages/、components/、layouts/ 時 |
 | UI 設定 | `spec/ui-config/ui-config.yaml` | UI 實作時讀取 |
+| Business Invariants | `spec/e2e-flows/*.flow.md` 開頭段 | Vibe UI 前必讀 |
 
 ---
 

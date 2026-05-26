@@ -3,8 +3,14 @@
 ## 必讀規範
 
 ```
-僅需讀取：
+所有模式必讀：
+- ../references/openapi-conventions.md（輸出格式法典）
 - spec/ui-config/ui-config-pm.yaml（PM 設定）
+
+OpenAPI 模式必讀：
+- spec/api/api-spec.yml（SoT）
+
+Feature 推導模式必讀：
 - spec/gherkin-feature/*.feature（所有 feature 檔）
 
 Sync 模式額外讀取：
@@ -14,14 +20,62 @@ Sync 模式額外讀取：
 
 ---
 
-## 模式判斷
-
-Phase 0 開始前，先檢查 `spec/report/route-map.yaml` 是否存在：
+## 來源判斷（先做）
 
 | 條件 | 模式 | 行為 |
 |------|------|------|
-| `route-map.yaml` **不存在** | **全量模式** | 執行下方「全量模式執行步驟」（現有流程不動） |
+| `spec/api/api-spec.yml` 存在 | **OpenAPI 模式** | 跳過 `.feature` 推導，直接 1:1 從 OpenAPI 派生 types + endpoints |
+| 僅 `spec/gherkin-feature/*.feature` 存在 | **Feature 推導模式** | 從 `.feature` 推欄位 + 端點；輸出格式遵守 `openapi-conventions.md` |
+
+## 模式判斷（疊在來源判斷之上）
+
+Phase 0 再檢查 `spec/report/route-map.yaml`：
+
+| 條件 | 模式 | 行為 |
+|------|------|------|
+| `route-map.yaml` **不存在** | **全量模式** | 執行下方「全量模式執行步驟」 |
 | `route-map.yaml` **存在** | **Sync 模式** | 執行下方「Sync 模式步驟」（增量偵測 + 變更報告） |
+
+---
+
+## OpenAPI 模式執行步驟（api-spec.yml 存在時）
+
+1. **讀取 PM 設定**（同下方全量模式步驟 1）
+2. **讀取 OpenAPI**：`spec/api/api-spec.yml`
+3. **派生 types**：每個 `components/schemas/*` → 對應 TS interface
+   - 依語意分組到 `app/types/api/{resource}.ts`（一個資源一檔）
+   - 同資源的 `XxxCreatedEvent` / `XxxListItem` / `XxxBody` 放同檔
+   - 命名、null、enum 處理嚴格遵守 `openapi-conventions.md` § 2
+   - 建立 `app/types/api/index.ts` 統一 re-export
+4. **派生端點規格**：每個 `paths/*/{method}` → `endpoints` 條目
+   - 路徑、method、request/response schema 引用全照抄
+   - 不要自加分頁（除非 spec 有 `parameters`）
+   - 不要改 method（如 spec 寫 `PATCH /practices/{id}/pitcher` 就照 spec）
+5. **產生 route-map.yaml**：`api_contract.response_conventions` 設為：
+   ```yaml
+   response_conventions:
+     list: 'T[]（直接回陣列，不包裝）'
+     single: T（直接回物件，不包裝）
+     action: XxxEvent（POST 201；軟刪除 204 無 body）
+     error: 'throw createError({ statusCode, statusMessage })'
+   ```
+6. **產出前自檢**：
+   - □ types 數量與 `components/schemas` 一致
+   - □ endpoints 數量與 `paths` 一致（method 維度）
+   - □ 全欄位 camelCase
+   - □ 無 `{ status, data }` 包裝
+   - □ HTTP code 對齊 spec
+7. **詢問用戶確認**
+
+---
+
+## Feature 推導模式注意事項
+
+走下方「全量模式執行步驟」，但有三個必改：
+
+- **欄位命名 camelCase**（不再 snake_case）
+- **型別命名分 Event / ListItem / Body / Detail**（見 `openapi-conventions.md` § 1）
+- **mock 端點直接回 schema**（不包 `{ status, data }`；Phase 1 負責，這邊先在 `route-map.yaml > response_conventions` 標明「裸物件 / 陣列」）
 
 ---
 
@@ -44,7 +98,8 @@ Phase 0 開始前，先檢查 `spec/report/route-map.yaml` 是否存在：
    - 根據 feature 分析結果，直接建立 TypeScript 型別定義檔
    - 每個資源一個檔案（如 `teams.ts`、`auth.ts`）
    - 建立 `index.ts` 統一 re-export
-   - ⚠️ 欄位命名使用 `snake_case`（與未來後端 API 對齊）
+   - ⚠️ **欄位命名使用 `camelCase`**（對齊 OpenAPI 慣例，未來與 `api-spec.yml` 無痛對接；不再用 snake_case）
+   - ⚠️ **型別命名分 Event / ListItem / Body / Detail**，見 `openapi-conventions.md` § 1
    - ⚠️ 日期欄位使用 `string`（JSON 不支援 `Date`）
    - ⚠️ **必須建在 `app/types/api/`**，Nuxt 4 的 `~` 別名解析到 `app/`
    - 見下方「API 合約型別範例」
@@ -145,28 +200,36 @@ app/types/api/
 
 ```typescript
 // app/types/api/teams.ts
-export interface TeamItem {
-  id: number
-  name: string
-  player_count: number
-  created_by: string
-  created_at: string
+export interface TeamListItem {
+  teamId: string // uuid
+  teamName: string
+  playerCount: number
+}
+
+export interface TeamCreatedEvent {
+  teamId: string
+  teamName: string
 }
 
 export interface CreateTeamBody {
-  name: string
+  teamName: string
 }
 ```
 
 ```typescript
 // app/types/api/index.ts — 統一 re-export
-export type { LoginData } from './auth'
-export type { CreateTeamBody, TeamItem } from './teams'
+export type { CoachLoggedInEvent, LoginBody } from './auth'
+export type { CreateTeamBody, TeamCreatedEvent, TeamListItem } from './teams'
 ```
 
-> ⚠️ **命名慣例**：欄位 `snake_case`、型別 `PascalCase`、日期用 `string`
+> ⚠️ **命名慣例**：欄位 `camelCase`、型別 `PascalCase`、UUID 用 `string`、日期用 `string`
 >
-> ⚠️ 此型別是前端自定義的合約，未來後端 API Spec 到位後只需修改 `types/api/` 即可對齊。
+> ⚠️ **型別命名規則**（見 `openapi-conventions.md` § 1）：
+> - 寫入動作回應 → `XxxEvent`（過去式動詞）
+> - 列表 view → `XxxListItem`
+> - Request body → `XxxBody`
+>
+> ⚠️ 此型別是前端自定義的合約，未來 `api-spec.yml` 到位後只需逐欄對齊 schema。
 
 ---
 
@@ -179,7 +242,7 @@ export type { CreateTeamBody, TeamItem } from './teams'
 # 由 /feature-to-ui Phase 0 自動產生
 # ⚠️ 可手動修改，修改後以此為準
 
-generated_at: "2026-01-20"
+generated_at: 2026-01-20
 version: 1
 
 # PM 啟用的額外功能（來自 ui-config-pm.yaml > additionalFeatures）
@@ -187,79 +250,82 @@ version: 1
 # Phase 4 據此建立對應元件，Phase 5 據此在頁面中使用
 # 各功能的實作規範 → 見 features.md
 enabled_features:
-  - charts              # 統計圖表
-  - dragAndDrop         # 拖曳排序
+  - charts # 統計圖表
+  - dragAndDrop # 拖曳排序
 
 # API 合約規格
 api_contract:
-  # 回傳格式慣例
+  # 回傳格式慣例（對齊 OpenAPI，不包裝）
   response_conventions:
-    list: "{ status: 'success', data: T[], meta: { total, page, page_size } }"
-    single: "{ status: 'success', data: T }"
-    action: "{ status: 'success', message: '...' }"
-    error: "throw createError({ statusCode, message })"
+    list: 'T[]（直接回陣列，不包裝）'
+    single: T（直接回物件，不包裝）
+    action: XxxEvent（POST 201；軟刪除 204 無 body）
+    error: 'throw createError({ statusCode, statusMessage })'
 
   # 型別欄位快照（鏡像 app/types/api/*.ts，作為 Sync diff 基準）
   # 程式碼層面的 SSoT 仍是 app/types/api/*.ts
   # 手動修改只改 *.ts，此區塊由 Phase 0 自動同步覆蓋
   types:
-    TeamItem:
+    TeamListItem:
       file: teams.ts
       fields:
-        id: number
-        name: string
-        player_count: number
-        created_by: string
-        created_at: string
+        teamId: string
+        teamName: string
+        playerCount: number
+    TeamCreatedEvent:
+      file: teams.ts
+      fields:
+        teamId: string
+        teamName: string
     CreateTeamBody:
       file: teams.ts
       fields:
-        name: string
+        teamName: string
 
   # 端點規格（方法 + 路徑 + Request/Response 型別名引用）
   endpoints:
     - method: POST
       path: /api/auth/login
-      request: "{ account: string, password: string }"
-      response: LoginData
+      request: LoginBody
+      response: CoachLoggedInEvent
     - method: GET
       path: /api/teams
-      request: "query: { page?, page_size? }"
-      response: "TeamItem[]"
+      request: '{}'
+      response: 'TeamListItem[]'
     - method: POST
       path: /api/teams
       request: CreateTeamBody
-      response: TeamItem
+      response: TeamCreatedEvent
 
 routes:
-  - path: "/login"
-    page: "app/pages/login.vue"
-    layout: "auth"
+  - path: /login
+    page: app/pages/login.vue
+    layout: auth
     features:
-      - file: "01-使用者登入.dsl.feature"
-        content_hash: "a1b2c3d4"
+      - file: 01-使用者登入.dsl.feature
+        content_hash: a1b2c3d4
     api_endpoints:
-      - "POST /api/auth/login"
+      - POST /api/auth/login
     components: []
-    store: "auth"
+    store: auth
 
-  - path: "/teams"
-    page: "app/pages/teams/index.vue"
-    layout: "default"
+  - path: /teams
+    page: app/pages/teams/index.vue
+    layout: default
     features:
-      - file: "03-查詢球隊列表.dsl.feature"
-        content_hash: "e5f6g7h8"
-      - file: "04-建立球隊.dsl.feature"
-        content_hash: "i9j0k1l2"
+      - file: 03-查詢球隊列表.dsl.feature
+        content_hash: e5f6g7h8
+      - file: 04-建立球隊.dsl.feature
+        content_hash: i9j0k1l2
     api_endpoints:
-      - "GET /api/teams"
-      - "POST /api/teams"
+      - GET /api/teams
+      - POST /api/teams
     components:
-      - "PageHeader"
-      - "ListContainer"
-      - "ConfirmModal"
+      - PageHeader
+      - ListContainer
+      - ConfirmModal
     store: null
-    features_used: []           # 此頁面使用的 additionalFeature（空則省略或留空陣列）
+    features_used: [] # 此頁面使用的 additionalFeature（空則省略或留空陣列）
 
   # 範例：使用 additionalFeature 的頁面
   # - path: "/analytics/[id]"
@@ -309,8 +375,8 @@ features 欄位使用物件陣列，每個物件包含 `file`（檔名）和 `co
 
 ```yaml
 features:
-  - file: "03-查詢球隊列表.dsl.feature"
-    content_hash: "a1b2c3d4"
+  - file: 03-查詢球隊列表.dsl.feature
+    content_hash: a1b2c3d4
 ```
 
 - `content_hash` 使用 `shasum -a 256` 計算 feature 檔案內容

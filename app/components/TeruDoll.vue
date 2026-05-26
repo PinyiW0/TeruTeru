@@ -84,7 +84,7 @@ const tailPath = computed(() =>
         opacity="0.55"
       />
       <!-- 領結 -->
-      <rect x="17" y="36" width="26" height="4.6" rx="1.6" :fill="tie" />
+      <rect data-role="tie" x="17" y="36" width="26" height="4.6" rx="1.6" :fill="tie" />
       <rect x="17" y="36" width="26" height="1.2" rx="0.6" fill="rgba(255,255,255,0.45)" />
       <path :d="tailPath" :fill="tie" opacity="0.85" />
 
@@ -96,33 +96,35 @@ const tailPath = computed(() =>
       <ellipse cx="20" cy="28" rx="3.6" ry="2.4" fill="#F2A8A2" opacity="0.75" />
       <ellipse cx="40" cy="28" rx="3.6" ry="2.4" fill="#F2A8A2" opacity="0.75" />
 
-      <!-- 眼睛 -->
-      <template v-if="face.kind === 'line'">
-        <path d="M 23 22 L 27 22" stroke="#1F2A3A" stroke-width="1.6" stroke-linecap="round" />
-        <path d="M 33 22 L 37 22" stroke="#1F2A3A" stroke-width="1.6" stroke-linecap="round" />
-      </template>
-      <template v-else-if="face.kind === 'happy'">
-        <path d="M 22.5 23 Q 25 20 27.5 23" stroke="#1F2A3A" stroke-width="1.6" stroke-linecap="round" fill="none" />
-        <path d="M 32.5 23 Q 35 20 37.5 23" stroke="#1F2A3A" stroke-width="1.6" stroke-linecap="round" fill="none" />
-      </template>
-      <template v-else>
-        <ellipse cx="25" cy="22" rx="1.4" ry="1.7" fill="#1F2A3A" />
-        <ellipse cx="35" cy="22" rx="1.4" ry="1.7" fill="#1F2A3A" />
-      </template>
+      <g data-role="face" :data-face="`${face.kind}-${face.mouth}`">
+        <!-- 眼睛 -->
+        <template v-if="face.kind === 'line'">
+          <path d="M 23 22 L 27 22" stroke="#1F2A3A" stroke-width="1.6" stroke-linecap="round" />
+          <path d="M 33 22 L 37 22" stroke="#1F2A3A" stroke-width="1.6" stroke-linecap="round" />
+        </template>
+        <template v-else-if="face.kind === 'happy'">
+          <path d="M 22.5 23 Q 25 20 27.5 23" stroke="#1F2A3A" stroke-width="1.6" stroke-linecap="round" fill="none" />
+          <path d="M 32.5 23 Q 35 20 37.5 23" stroke="#1F2A3A" stroke-width="1.6" stroke-linecap="round" fill="none" />
+        </template>
+        <template v-else>
+          <ellipse cx="25" cy="22" rx="1.4" ry="1.7" fill="#1F2A3A" />
+          <ellipse cx="35" cy="22" rx="1.4" ry="1.7" fill="#1F2A3A" />
+        </template>
 
-      <!-- 嘴巴 -->
-      <ellipse
-        v-if="face.mouth === 'o'"
-        cx="30" cy="29" rx="1.1" ry="1.4" fill="#9B5346"
-      />
-      <path
-        v-else-if="face.mouth === 'flat'"
-        d="M 28 28.5 L 32 28.5" stroke="#9B5346" stroke-width="1.2" stroke-linecap="round"
-      />
-      <path
-        v-else
-        d="M 27.5 28 Q 30 30.5 32.5 28" stroke="#9B5346" stroke-width="1.2" stroke-linecap="round" fill="none"
-      />
+        <!-- 嘴巴 -->
+        <ellipse
+          v-if="face.mouth === 'o'"
+          cx="30" cy="29" rx="1.1" ry="1.4" fill="#9B5346"
+        />
+        <path
+          v-else-if="face.mouth === 'flat'"
+          d="M 28 28.5 L 32 28.5" stroke="#9B5346" stroke-width="1.2" stroke-linecap="round"
+        />
+        <path
+          v-else
+          d="M 27.5 28 Q 30 30.5 32.5 28" stroke="#9B5346" stroke-width="1.2" stroke-linecap="round" fill="none"
+        />
+      </g>
     </g>
 
     <!-- collage 風格的紙邊 -->

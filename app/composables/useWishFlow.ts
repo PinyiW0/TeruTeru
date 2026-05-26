@@ -50,8 +50,14 @@ export function useWishFlow() {
   const location = useState<string>('teru:location', () => readPersistedLocation())
   const dolls = useState<DollPlaced[]>('teru:dolls', () => [])
 
-  // 持久化:location 變化時寫回 localStorage(僅 client)
   if (import.meta.client) {
+    // SSR 階段 location initializer 為空字串,client 端首次呼叫時從 localStorage 同步
+    if (location.value === '') {
+      const persisted = readPersistedLocation()
+      if (persisted)
+        location.value = persisted
+    }
+    // 持久化:location 變化時寫回 localStorage
     watch(location, (next) => {
       try {
         window.localStorage.setItem(LOCATION_STORAGE_KEY, next)
@@ -71,8 +77,10 @@ export function useWishFlow() {
         location.value = payload.location
       phase.value = next
       if (next === 'setup') {
-        // 回 setup 時清空娃娃
+        // 回 setup 時清空娃娃,date 重置為今天(除非 payload 明示)
         dolls.value = []
+        if (!payload?.date)
+          date.value = todayMidnight()
       }
     }, PHASE_SWITCH_MS)
     setTimeout(() => {

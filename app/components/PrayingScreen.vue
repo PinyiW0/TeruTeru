@@ -167,6 +167,7 @@ function swayDelay(slot: number) {
             transform="translate(0, 1.5)"
           />
           <path
+            :data-rope-index="i"
             :d="rp.d"
             stroke="var(--rope)"
             stroke-width="1.6"
@@ -189,8 +190,9 @@ function swayDelay(slot: number) {
       <div
         v-for="d in dolls"
         :key="d.id"
-        class="doll"
+        class="doll teru-doll"
         :class="d.hung ? 'hung' : 'floating-in'"
+        :data-doll-slot="d.slot"
         :style="{
           'left': `${dollLeft(d.slot)}px`,
           'top': `${dollTop(d.slot)}px`,
@@ -212,7 +214,7 @@ function swayDelay(slot: number) {
     <!-- 底部 hint -->
     <div class="pray-hint-bot">
       <span>點任意處</span>
-      <span class="tap-dot" />
+      <span class="tap-dot">·</span>
       <span>掛上晴天娃娃</span>
     </div>
   </div>

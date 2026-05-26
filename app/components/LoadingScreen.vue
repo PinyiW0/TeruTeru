@@ -5,7 +5,7 @@
 </script>
 
 <template>
-  <div class="loader" data-screen-label="Loading">
+  <div class="loader loading-screen" data-screen-label="Loading" data-testid="wish-loading-screen">
     <!-- 中央背後小 Sun -->
     <div class="loader-sun">
       <SunIcon :size="140" />

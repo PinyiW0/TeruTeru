@@ -79,7 +79,7 @@ function handleRestart() {
     <div :style="haloStyle" />
 
     <!-- 太陽 -->
-    <div :style="sunStyle">
+    <div data-role="sun" :style="sunStyle">
       <SunIcon :size="220" />
     </div>
 
@@ -113,7 +113,7 @@ function handleRestart() {
         一定會是好天氣的!
       </h2>
       <p class="complete-sub">
-        {{ TOTAL_DOLLS }} 隻晴天娃娃,已經掛滿
+        {{ TOTAL_DOLLS }} 隻晴天娃娃，已經掛滿
       </p>
       <p class="complete-meta">
         {{ formatDateCN(date) }}<br>

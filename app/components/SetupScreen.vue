@@ -7,6 +7,26 @@ const { date, location, goTo } = useWishFlow()
 const { tweaks, setTweak } = useTweaks()
 const { pluck, tok } = useTeruAudio()
 
+// client 端 setup 階段:若 location 仍為空(SSR initial value),從 localStorage 同步
+// 確保 chip 的 :class 在 hydration render 用正確值,避免 SSR/CSR class mismatch
+if (import.meta.client && !location.value) {
+  try {
+    const persisted = window.localStorage.getItem('teru.location')
+    if (persisted)
+      location.value = persisted
+  }
+  catch {
+    // ignore
+  }
+}
+
+// hydration 完成標記:用於強制 chip 等 SSR/CSR 結果可能不同的 :class binding
+// 在 mount 後重新 evaluate(Vue hydration 對 class mismatch 不會自動 patch)
+const hydrated = ref(false)
+onMounted(() => {
+  hydrated.value = true
+})
+
 const today = computed(() => todayMidnight())
 // 把 selected date 傳進去,讓 strip 延伸涵蓋使用者下拉選的遠日期
 const days = computed(() => buildDays(today.value, date.value))
@@ -205,7 +225,7 @@ function handleStart() {
         Teru Teru 放晴中
       </h1>
       <p class="setup-subtitle">
-        為一個日子,為一個地方,求一場好天氣
+        為一個日子，為一個地方，求一場好天氣
       </p>
     </div>
 
@@ -231,17 +251,17 @@ function handleStart() {
         選擇日期
       </p>
       <div class="date-picker">
-        <select :value="date.getFullYear()" @change="setY(Number(($event.target as HTMLSelectElement).value))">
+        <select aria-label="年" :value="date.getFullYear()" @change="setY(Number(($event.target as HTMLSelectElement).value))">
           <option v-for="y in years" :key="y" :value="y">
             {{ y }} 年
           </option>
         </select>
-        <select :value="date.getMonth()" @change="setM(Number(($event.target as HTMLSelectElement).value))">
+        <select aria-label="月" :value="date.getMonth()" @change="setM(Number(($event.target as HTMLSelectElement).value))">
           <option v-for="m in months" :key="m" :value="m">
             {{ m + 1 }} 月
           </option>
         </select>
-        <select :value="date.getDate()" @change="setD(Number(($event.target as HTMLSelectElement).value))">
+        <select aria-label="日" :value="date.getDate()" @change="setD(Number(($event.target as HTMLSelectElement).value))">
           <option v-for="d in dayNums" :key="d" :value="d">
             {{ d }} 日
           </option>
@@ -291,6 +311,7 @@ function handleStart() {
       </p>
       <input
         v-model="location"
+        aria-label="選擇地點"
         class="loc-input"
         type="text"
         placeholder="例如:台北、京都…"
@@ -300,7 +321,7 @@ function handleStart() {
           v-for="loc in COMMON_LOCATIONS"
           :key="loc"
           class="chip"
-          :class="{ active: location === loc }"
+          :class="{ active: hydrated && location === loc }"
           @click="tapChip(loc)"
         >
           {{ loc }}

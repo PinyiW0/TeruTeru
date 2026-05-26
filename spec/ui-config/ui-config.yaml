@@ -5,8 +5,8 @@
 # 專案資訊（必填）
 # =============================================================================
 project:
-  name: "" # 網站名稱
-  description: "" # 網站描述
+  name: "Teru Teru 放晴吧！" # 網站名稱
+  description: "祈求好天氣平台" # 網站描述
   locale: "zh-TW" # 語系
   favicon: "/favicon.ico" # 網站圖示
 
@@ -15,8 +15,8 @@ project:
 # Phase 1 讀取後寫入 nuxt.config.ts 的 app.head
 # =============================================================================
 meta:
-  keywords: "" # SEO 關鍵字（逗號分隔）
-  author: "Osense" # 網站作者或團隊名稱
+  keywords: "晴天娃娃，Teru，晴天，雨天，陰天" # SEO 關鍵字（逗號分隔）
+  author: "Pinyi" # 網站作者或團隊名稱
   og:
     image: "/og-image.png" # 社群分享預覽圖（建議 1200x630 px）
     type: "website" # 網站類型：website | article
@@ -48,13 +48,13 @@ meta:
 # =============================================================================
 theme:
   colors:
-    primary: ""      # 主色
-    secondary: ""    # 輔色
-    neutral: ""      # 中性色
-    success: ""             # 成功狀態
-    warning: ""             # 警告狀態
-    error: ""               # 錯誤狀態
-    info: ""                # 資訊提示
+    primary: "#5BAFE8"      # sunny sky 加深版（pastel #B8DEF0 當 500 base 對比不足）
+    secondary: "#F4A8BC"    # sakura 加深版（pastel #FFD3DE 當 500 base 對比不足）
+    neutral: "stone"        # 暖中性色，配和紙 / pastel 比 slate 柔和
+    success: "#7FB069"      # matcha 加深版，呼應第三主題
+    warning: "amber"        # 暖色，跟 sunny / sun icon 同調
+    error: "rose"           # 比 red 柔，符合整體軟質感
+    info: "sky"             # 與 primary 同色系但較淡
 
 # =============================================================================
 # 測試帳號（從 ui-config-pm.yaml 同步）

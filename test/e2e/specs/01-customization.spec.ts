@@ -198,8 +198,8 @@ test.describe('規則：音效系統 lazy init', () => {
     // Given：頁面已載入，audio spy 已注入
     await page.goto('/', { waitUntil: 'networkidle' })
 
-    // When：點擊任一會呼叫 pluck 的 chip（觸發 useTeruAudio）
-    await page.getByRole('button', { name: /^台北$/ }).click()
+    // When：點擊任一會呼叫 pluck 的操作（點 theme dot 觸發 useTeruAudio）
+    await page.getByRole('button', { name: 'sakura' }).click()
 
     // Then：AudioContext 建立 1 次
     await expect.poll(async () => (await readAudioSpy(page)).ctxCount).toBeGreaterThanOrEqual(1)
@@ -226,9 +226,9 @@ test.describe('規則：音效系統 lazy init', () => {
 
 test.describe('規則：音效可被關閉', () => {
   test('setEnabled(false) 後互動不發出聲音', async ({ page }) => {
-    // Given：頁面已載入，先點一次 chip 讓 AudioContext 建立
+    // Given：頁面已載入，先點一次 theme dot 讓 AudioContext 建立
     await page.goto('/', { waitUntil: 'networkidle' })
-    await page.getByRole('button', { name: /^台北$/ }).click()
+    await page.getByRole('button', { name: 'sakura' }).click()
     await expect.poll(async () => (await readAudioSpy(page)).oscCount).toBeGreaterThan(0)
 
     const before = await readAudioSpy(page)
@@ -251,8 +251,8 @@ test.describe('規則：音效可被關閉', () => {
         w.__tweaks.soundOn.value = false
     })
 
-    // 再點 chip 觸發原本會播音效的操作
-    await page.getByRole('button', { name: /^台中$/ }).click()
+    // 再點 theme dot 觸發原本會播音效的操作
+    await page.getByRole('button', { name: 'matcha' }).click()
     await page.waitForTimeout(100)
 
     // Then：oscillator 與 bufferSource 計數不變

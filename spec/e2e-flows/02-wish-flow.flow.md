@@ -9,7 +9,7 @@
 - phase 取值：`setup` / `praying` / `complete`
 - 過場 curtain：`useWishFlow.goTo(next)` 被呼叫時 `transition` 設為 true，1250ms 後切回 false，期間覆蓋整個畫面顯示 LoadingScreen
 - 時區：使用者本機時區的「今天」（hours/minutes/seconds/ms 皆為 0）
-- localStorage：地點持久化於 `teru.location`；日期不持久化
+- localStorage：地點持久化於 `teru.location`；日期持久化於 `teru.date`（過去日不還原）
 
 ---
 
@@ -19,18 +19,16 @@
 2. **過場 curtain 出現於任何 phase 切換**：goTo 觸發時畫面被 LoadingScreen 蓋住，1250ms 內自動消失
 3. **日期選擇受限**：過去日期不可選；預設為本機時區今天；年份範圍為 [今年, 今年+1, 今年+2]
 4. **日期下拉與 week strip 同步**：兩種日期選擇器互為鏡像，任一變動另一即時反映
-5. **日期不持久化**：reload 後日期回到今天
-6. **地點輸入持久化**：地點寫入 localStorage，reload 後 input 與對應 chip 仍顯示先前值
-7. **8 個地點 chip 順序固定**：台北、台中、高雄、東京、大阪、京都、首爾、沖繩
-8. **「開始放晴」按鈕門檻**：location.trim() 非空才可啟用；點擊後播 tok() 並 600ms 後切到 praying
-9. **Praying stage 接受任意處點擊新增娃娃**：但點返回鈕 / 點頂部 meta 區不新增娃娃
-10. **娃娃數量上限 25**：第 25 次點擊後 1400ms 自動切到 complete；過渡期間再點不增加
-11. **娃娃漂浮入場**：新娃娃套 floating-in 1100ms 後切 hung，CSS 變數已設定
-12. **繩子 5 條，順序由下往上**：rope 0 最底（Y 0.92）、rope 4 最上（Y 0.08），有 catenary sag
-13. **Stage resize 響應**：繩與已掛娃娃座標重新計算
-14. **Complete 三段動畫**：clouded → clearing (350ms) → done (1900ms) 並於 done 播 bloom()
-15. **Complete 達成文案數字動態**：「{TOTAL_DOLLS} 隻晴天娃娃」數字來自常數而非寫死
-16. **重新祈禱**：phase 回 setup、dolls 清空、date 重置為今天、location 保留
+5. **日期持久化**：所選日期寫入 `teru.date`，reload 後還原（但已過期的過去日不還原，退回今天）
+6. **地點輸入持久化**：地點寫入 localStorage，reload 後 input 仍顯示先前值
+7. **「開始放晴」按鈕門檻**：location.trim() 非空才可啟用；點擊後播 tok() 並 600ms 後切到 praying
+8. **Praying stage 接受任意處點擊新增娃娃**：但點返回鈕 / 點頂部 meta 區不新增娃娃
+9. **娃娃數量上限 25**：第 25 次點擊後 1400ms 自動切到 complete；過渡期間再點不增加
+10. **娃娃漂浮入場**：新娃娃套 floating-in 1100ms 後切 hung，CSS 變數已設定
+11. **繩子 5 條，順序由下往上**：rope 0 最底（Y 0.92）、rope 4 最上（Y 0.08），有 catenary sag
+12. **Stage resize 響應**：繩與已掛娃娃座標重新計算
+13. **Complete 三段動畫**：clouded → clearing (350ms) → done (1900ms) 並於 done 播 bloom()
+14. **重新祈禱**：phase 回 setup、dolls 清空、date 保留先前選擇、location 保留
 
 ---
 
@@ -158,9 +156,9 @@
 
 ---
 
-## Flow: 日期不持久化（derivation）
+## Flow: 日期持久化（persistence）
 
-> 對應 Feature: Setup 畫面 — 日期選擇 → Scenario: Reload 後重置為今天
+> 對應 Feature: Setup 畫面 — 日期選擇 → Scenario: Reload 後還原所選日期
 
 ### 業務脈絡
 - 使用者選了未來某天，如 `2026/12/25`
@@ -169,66 +167,18 @@
 1. 進入 `/`，選擇 2026/12/25
 2. Reload 頁面
 3. 期待：
-   - SetupScreen 顯示今天為已選
-   - `useWishFlow().date.value` 為今天
+   - SetupScreen 顯示 2026/12/25 為已選
+   - `useWishFlow().date.value` 為 2026/12/25
 
 ### Verification 策略
-- evaluate 比對日期等於今天 00:00:00
-- localStorage 內無 `teru.date` 鍵（或鍵不影響 reload 後初始狀態）
+- evaluate 比對日期等於 2026/12/25 00:00:00
+- `localStorage.teru.date` 已寫入所選日期（ISO 字串）
+
+### 邊界
+- 已過期的過去日（早於今天）reload 時不還原，退回今天 00:00:00（與「過去日不可選」一致）
 
 ### 不再凍結
-- 是否曾將日期暫存到 sessionStorage / memory（只要 reload 後初始為今天即可）
-
----
-
-## Flow: 點選地點 chip 同步 input（happy-path）
-
-> 對應 Feature: Setup 畫面 — 地點輸入 → Scenario: 點 chip 填入並 active
-
-### 業務脈絡
-- SetupScreen 已渲染、location input 為空
-
-### E2E 驗證流程
-1. 進入 `/`
-2. 點擊「東京」chip
-3. 期待：
-   - location input 值為「東京」
-   - 「東京」chip 標示為 active
-   - 其他 chips 失去 active
-   - 播放音效（pluck 系列，頻率不強制斷言）
-
-### Verification 策略
-- input value 斷言 `'東京'`
-- 找到「東京」chip 元素檢查 active 標示
-- 蒐集其他 chips 確認無 active
-- 音效 spy 確認 oscillator 被建立至少一次
-
-### 不再凍結
-- chip 形式（按鈕 / radio / segment）
-- pluck 具體頻率（spec 註明 620Hz 為 reference，不強制斷言）
-- active 視覺呈現
-
----
-
-## Flow: 8 個地點 chip 固定順序（derivation）
-
-> 對應 Feature: Setup 畫面 — 地點輸入 → Scenario: 8 個 chip 固定順序
-
-### 業務脈絡
-- SetupScreen 渲染 chips 區
-
-### E2E 驗證流程
-1. 進入 `/`
-2. 蒐集 chips 文字
-3. 期待：依序為 ["台北", "台中", "高雄", "東京", "大阪", "京都", "首爾", "沖繩"]
-
-### Verification 策略
-- `locator('地點 chip 容器').allTextContents()` 後過濾、斷言順序
-- 找 chip 元素的策略：role=button 且文字落在這 8 個之一
-
-### 不再凍結
-- chip 容器版型（單列 / 兩列 / wrap）
-- 字型 / 大小 / 顏色
+- 寫入時機（每次變更 / 開始時批次皆可）；儲存格式（ISO / timestamp 皆可）
 
 ---
 
@@ -252,7 +202,6 @@
 
 ### 不再凍結
 - 寫入時機（每次 keyup / blur / 開始時批次寫入皆可）
-- 是否同時更新 chip active 狀態（若文字非預設 8 個則不需 active）
 
 ---
 
@@ -264,18 +213,16 @@
 - 使用者已輸入並儲存 "京都"
 
 ### E2E 驗證流程
-1. 進入 `/`，輸入 / 點選 "京都"
+1. 進入 `/`，於 input 輸入 "京都"
 2. Reload
 3. 期待：
    - location input 預設顯示 "京都"
-   - "京都" chip 套 active
 
 ### Verification 策略
 - reload 後 input value 斷言 "京都"
-- "京都" chip active 斷言
 
 ### 不再凍結
-- chip active 視覺呈現
+- 寫入時機（keyup / blur / 批次皆可）
 
 ---
 
@@ -593,7 +540,7 @@
 
 ### Verification 策略
 - evaluate dolls.length
-- 等候 CompleteScreen 標示元素（「{TOTAL_DOLLS} 隻晴天娃娃，已經掛滿」）可見
+- 等候 CompleteScreen 標示元素（主標「一定會是好天氣的!」）可見
 
 ### 不再凍結
 - 1400ms 容差 ±200ms
@@ -692,7 +639,7 @@
 ### Verification 策略
 - Sun computed opacity 1
 - 雲朵元素已從 DOM 移除（`expect(locator).toHaveCount(0)`）
-- 完成文字可見：`getByText(/已經掛滿/)` visible
+- 完成文字可見：`getByText(/一定會是好天氣的/)` visible
 - bloom 音效 spy 計數 +1
 
 ### 不再凍結
@@ -723,27 +670,6 @@
 
 ### 不再凍結
 - 重新祈禱按鈕在 done 前是否可見（spec 通常於 done 才浮現；測試此 scenario 改用 evaluate 直接觸發 phase 切換較穩定）
-
----
-
-## Flow: 達成文案數字動態（happy-path）
-
-> 對應 Feature: Complete 畫面 — 達成文案 → Scenario: 文案顯示 25 而非 20
-
-### 業務脈絡
-- CompleteScreen 進入 done 階段
-
-### E2E 驗證流程
-1. 進入 `/`，完成全流程至 complete done
-2. 期待：完成副標顯示「{TOTAL_DOLLS} 隻晴天娃娃，已經掛滿」，目前常數為 25
-
-### Verification 策略
-- `getByText(/25 隻晴天娃娃，已經掛滿/)`
-- 若 TOTAL_DOLLS 修改：透過 evaluate 取常數值並動態組字串斷言
-
-### 不再凍結
-- 副標其他文字裝飾（前後綴句子）
-- 25 為當前常數，未來改變需同時更新 spec
 
 ---
 
@@ -808,36 +734,36 @@
 2. 點「重新祈禱」回 setup
 3. 期待：
    - location input 仍顯示 "淡水"
-   - "淡水" chip 仍 active（若 "淡水" 不在 chips 清單，則僅 input 顯示）
    - localStorage.teru.location 仍為 "淡水"
 
 ### Verification 策略
 - input value 斷言
-- chip active 狀態（"淡水" 不在預設 8 個，所以無 chip active；若 spec 描述「淡水 chip 套 active」可能指自由輸入時是否該被視為 active，此處保守驗 input value 即可）
+- localStorage.teru.location 斷言
 
 ### 不再凍結
-- 自由輸入時 chip 是否需出現對應 active（spec 描述模糊，建議以 input 內容為準）
+- 寫入時機（keyup / blur / 批次皆可）
 
 ---
 
-## Flow: 重新祈禱重置日期為今天（derivation）
+## Flow: 重新祈禱保留先前日期（persistence）
 
-> 對應 Feature: Complete 畫面 — 重新祈禱 → Scenario: 重新祈禱重置日期為今天
+> 對應 Feature: Complete 畫面 — 重新祈禱 → Scenario: 重新祈禱保留先前日期
 
 ### 業務脈絡
 - 使用者於 setup 選了 "2026/12/25" 並完成至 complete
+- 再次祈禱時通常是為同一個日子，故保留先前選擇的日期，免去重選
 
 ### E2E 驗證流程
 1. 進入 `/`，選日期 2026/12/25，完成全流程
 2. 點「重新祈禱」
-3. 期待：SetupScreen 的 date 為今天
+3. 期待：SetupScreen 的 date 仍為 2026/12/25
 
 ### Verification 策略
-- evaluate `useWishFlow().date.value` 等於今天 00:00:00
-- week strip 「今天」標示
+- evaluate `useWishFlow().date.value` 等於 2026/12/25 00:00:00
+- week strip 該日「已選」標示
 
 ### 不再凍結
-- date 重置時機（goTo 之前 / 之後）
+- date 保留時機（goTo 之前 / 之後）
 
 ---
 

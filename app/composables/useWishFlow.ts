@@ -1,5 +1,5 @@
 import type { DollPlaced, Phase, WishData } from '~/types/wish'
-import { todayMidnight } from '~/utils/wishDate'
+import { isSameDay, todayMidnight } from '~/utils/wishDate'
 
 // 排版常數(直譯自 reference praying.jsx)
 export const TOTAL_DOLLS = 25
@@ -18,6 +18,7 @@ const FLOAT_TO_HUNG_MS = 1100
 const COMPLETE_DELAY_MS = 1400
 
 const LOCATION_STORAGE_KEY = 'teru.location'
+const DATE_STORAGE_KEY = 'teru.date'
 
 function readPersistedLocation(): string {
   if (!import.meta.client)
@@ -27,6 +28,28 @@ function readPersistedLocation(): string {
   }
   catch {
     return ''
+  }
+}
+
+// 讀取持久化的日期;若無效或已過期(早於今天)則回 null,讓 caller fallback 到今天
+// (過去日 gate:select / weekstrip 不含過去日,還原過去日會造成選項對不上)
+function readPersistedDate(): Date | null {
+  if (!import.meta.client)
+    return null
+  try {
+    const raw = window.localStorage.getItem(DATE_STORAGE_KEY)
+    if (!raw)
+      return null
+    const d = new Date(raw)
+    if (Number.isNaN(+d))
+      return null
+    d.setHours(0, 0, 0, 0)
+    if (d < todayMidnight())
+      return null
+    return d
+  }
+  catch {
+    return null
   }
 }
 
@@ -57,10 +80,23 @@ export function useWishFlow() {
       if (persisted)
         location.value = persisted
     }
+    // SSR date initializer 為今天;client 端首次呼叫時還原持久化日期(若未過期)
+    const persistedDate = readPersistedDate()
+    if (persistedDate && !isSameDay(persistedDate, date.value))
+      date.value = persistedDate
     // 持久化:location 變化時寫回 localStorage
     watch(location, (next) => {
       try {
         window.localStorage.setItem(LOCATION_STORAGE_KEY, next)
+      }
+      catch {
+        // ignore quota / disabled errors
+      }
+    })
+    // 持久化:date 變化時寫回 localStorage(存 ISO 字串)
+    watch(date, (next) => {
+      try {
+        window.localStorage.setItem(DATE_STORAGE_KEY, next.toISOString())
       }
       catch {
         // ignore quota / disabled errors

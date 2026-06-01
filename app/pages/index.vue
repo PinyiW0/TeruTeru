@@ -4,7 +4,6 @@ const { phase, transition } = useWishFlow()
 
 <template>
   <div class="stage" data-screen-root>
-    <BgClouds />
     <DollDefs />
 
     <SetupScreen v-if="phase === 'setup'" />

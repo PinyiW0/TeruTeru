@@ -1,9 +1,8 @@
 <script setup lang="ts">
 // 1:1 port of spec/ui-config/ui-reference/complete.jsx::CompleteScreen
-// Bug fix:complete-sub 文案數字從 TOTAL_DOLLS 動態讀,不寫死 20
 import { formatDateCN } from '~/utils/wishDate'
 
-const { date, location, goTo, TOTAL_DOLLS } = useWishFlow()
+const { date, location, goTo } = useWishFlow()
 const { tok, bloom } = useTeruAudio()
 
 type AnimPhase = 'clouded' | 'clearing' | 'done'
@@ -69,7 +68,8 @@ const textStyle = computed(() => ({
 
 function handleRestart() {
   tok()
-  goTo('setup')
+  // 帶上目前日期,讓重新祈禱保留先前選擇(再次祈禱常為同一個日子)
+  goTo('setup', { date: date.value })
 }
 </script>
 
@@ -112,9 +112,6 @@ function handleRestart() {
       <h2 class="complete-title">
         一定會是好天氣的!
       </h2>
-      <p class="complete-sub">
-        {{ TOTAL_DOLLS }} 隻晴天娃娃，已經掛滿
-      </p>
       <p class="complete-meta">
         {{ formatDateCN(date) }}<br>
         為 {{ location }} 祈禱

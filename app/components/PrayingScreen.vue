@@ -214,7 +214,7 @@ function swayDelay(slot: number) {
     <!-- 底部 hint -->
     <div class="pray-hint-bot">
       <span>點任意處</span>
-      <span class="tap-dot">·</span>
+      <span class="tap-dot" aria-hidden="true">·</span>
       <span>掛上晴天娃娃</span>
     </div>
   </div>

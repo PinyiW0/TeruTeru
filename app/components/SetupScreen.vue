@@ -1,31 +1,11 @@
 <script setup lang="ts">
 // 1:1 port of spec/ui-config/ui-reference/setup.jsx
 import type { ThemeColor } from '~/types/tweaks'
-import { buildDays, COMMON_LOCATIONS, isSameDay, todayMidnight, WEEKDAY_LABELS } from '~/utils/wishDate'
+import { buildDays, isSameDay, todayMidnight, WEEKDAY_LABELS } from '~/utils/wishDate'
 
 const { date, location, goTo } = useWishFlow()
 const { tweaks, setTweak } = useTweaks()
 const { pluck, tok } = useTeruAudio()
-
-// client 端 setup 階段:若 location 仍為空(SSR initial value),從 localStorage 同步
-// 確保 chip 的 :class 在 hydration render 用正確值,避免 SSR/CSR class mismatch
-if (import.meta.client && !location.value) {
-  try {
-    const persisted = window.localStorage.getItem('teru.location')
-    if (persisted)
-      location.value = persisted
-  }
-  catch {
-    // ignore
-  }
-}
-
-// hydration 完成標記:用於強制 chip 等 SSR/CSR 結果可能不同的 :class binding
-// 在 mount 後重新 evaluate(Vue hydration 對 class mismatch 不會自動 patch)
-const hydrated = ref(false)
-onMounted(() => {
-  hydrated.value = true
-})
 
 const today = computed(() => todayMidnight())
 // 把 selected date 傳進去,讓 strip 延伸涵蓋使用者下拉選的遠日期
@@ -178,7 +158,15 @@ function scrollSelectedIntoCenter() {
   strip.scrollTo({ left: Math.max(0, target), behavior: 'smooth' })
 }
 
+// hydration 完成標記:用於 canStart 等依賴 localStorage 還原值的 binding
+// SSR location 必為空 → 按鈕 render 成 disabled;client 還原 location 後,
+// Vue 不會自動 patch SSR/CSR 不一致的 disabled boolean 屬性。
+// 以 mounted 閘控讓 SSR 與 client 首次 render 一致(皆 disabled),mount 後再反映真實狀態,
+// 使 mounted false→true 的 reactive 變化確實觸發 patch。
+const mounted = ref(false)
+
 onMounted(() => {
+  mounted.value = true
   nextTick(scrollSelectedIntoCenter)
 })
 
@@ -188,12 +176,13 @@ watch(date, () => {
   nextTick(scrollSelectedIntoCenter)
 })
 
-// Theme dots
-interface ThemeDot { id: ThemeColor, color: string }
+// Theme dots — 每個圓圈疊一個不同的晴天娃娃表情
+type FaceKind = 'smile' | 'happy' | 'wink'
+interface ThemeDot { id: ThemeColor, color: string, face: FaceKind }
 const themeDots: ThemeDot[] = [
-  { id: 'sunny', color: '#B8DEF0' },
-  { id: 'sakura', color: '#FFD3DE' },
-  { id: 'matcha', color: '#C7DDB5' },
+  { id: 'sunny', color: '#B8DEF0', face: 'smile' },
+  { id: 'sakura', color: '#FFD3DE', face: 'happy' },
+  { id: 'matcha', color: '#C7DDB5', face: 'wink' },
 ]
 
 function pickTheme(id: ThemeColor) {
@@ -201,14 +190,9 @@ function pickTheme(id: ThemeColor) {
   pluck(700)
 }
 
-// Location chips
-function tapChip(loc: string) {
-  location.value = loc
-  pluck(620)
-}
-
-// Start CTA
-const canStart = computed(() => location.value.trim().length > 0)
+// Start CTA：location.trim() 非空才可啟用(Business Invariant)
+// 閘 mounted 以避免 SSR(空 location)→ disabled 與 client 還原值的 hydration 不一致
+const canStart = computed(() => mounted.value && location.value.trim().length > 0)
 
 function handleStart() {
   if (!canStart.value)
@@ -241,7 +225,41 @@ function handleStart() {
           :class="{ active: tweaks.themeColor === t.id }"
           :style="{ background: t.color }"
           @click="pickTheme(t.id)"
-        />
+        >
+          <!-- 晴天娃娃表情(每顆不同) -->
+          <svg class="dot-face" viewBox="0 0 36 36" aria-hidden="true">
+            <!-- 雙頰 -->
+            <ellipse cx="11" cy="21" rx="2.6" ry="1.7" fill="#F2A8A2" opacity="0.7" />
+            <ellipse cx="25" cy="21" rx="2.6" ry="1.7" fill="#F2A8A2" opacity="0.7" />
+
+            <!-- 眼睛 -->
+            <template v-if="t.face === 'happy'">
+              <!-- 笑彎的眼(^ ^) -->
+              <path d="M 11 16 Q 13 13 15 16" stroke="#1F2A3A" stroke-width="1.5" stroke-linecap="round" fill="none" />
+              <path d="M 21 16 Q 23 13 25 16" stroke="#1F2A3A" stroke-width="1.5" stroke-linecap="round" fill="none" />
+            </template>
+            <template v-else-if="t.face === 'wink'">
+              <!-- 眨眼:左圓點、右彎眼 -->
+              <ellipse cx="13" cy="15" rx="1.5" ry="1.8" fill="#1F2A3A" />
+              <path d="M 21 16 Q 23 13 25 16" stroke="#1F2A3A" stroke-width="1.5" stroke-linecap="round" fill="none" />
+            </template>
+            <template v-else>
+              <!-- 圓點眼 -->
+              <ellipse cx="13" cy="15" rx="1.5" ry="1.8" fill="#1F2A3A" />
+              <ellipse cx="23" cy="15" rx="1.5" ry="1.8" fill="#1F2A3A" />
+            </template>
+
+            <!-- 嘴巴 -->
+            <path
+              v-if="t.face === 'wink'"
+              d="M 15 22 Q 18 26 21 22" stroke="#9B5346" stroke-width="1.3" stroke-linecap="round" fill="none"
+            />
+            <path
+              v-else
+              d="M 15 21 Q 18 24 21 21" stroke="#9B5346" stroke-width="1.3" stroke-linecap="round" fill="none"
+            />
+          </svg>
+        </button>
       </div>
     </div>
 
@@ -307,7 +325,7 @@ function handleStart() {
     <!-- Location -->
     <div style="margin-top: 22px;">
       <p class="field-label">
-        選擇地點
+        輸入地點
       </p>
       <input
         v-model="location"
@@ -316,20 +334,9 @@ function handleStart() {
         type="text"
         placeholder="例如:台北、京都…"
       >
-      <div class="chips" style="justify-content: center;">
-        <button
-          v-for="loc in COMMON_LOCATIONS"
-          :key="loc"
-          class="chip"
-          :class="{ active: hydrated && location === loc }"
-          @click="tapChip(loc)"
-        >
-          {{ loc }}
-        </button>
-      </div>
     </div>
 
-    <div class="start-cta">
+    <div class="start-cta" style="transform: translateY(-24px);">
       <button class="btn-primary" :disabled="!canStart" @click="handleStart">
         開始放晴
       </button>

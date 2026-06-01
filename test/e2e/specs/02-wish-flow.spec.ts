@@ -16,8 +16,6 @@ import {
 // Setup → Praying → Complete 完整 wish flow 契約測試
 // 對應 spec/e2e-flows/02-wish-flow.flow.md
 
-const LOCATION_CHIPS = ['台北', '台中', '高雄', '東京', '大阪', '京都', '首爾', '沖繩'] as const
-
 function todayLocalDay() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -151,64 +149,28 @@ test.describe('規則：年份下拉範圍正確', () => {
   })
 })
 
-test.describe('規則：日期不持久化', () => {
-  test('reload 後 date 重置為今天', async ({ page }) => {
-    // Given：使用者已將 date 改為未來某日
+test.describe('規則：日期持久化', () => {
+  test('reload 後 date 保留先前選擇', async ({ page }) => {
+    // Given：使用者已將 date 改為未來某日（2026-12-25）
     await page.goto('/', { waitUntil: 'networkidle' })
     await page.evaluate(() => {
       const w = window as unknown as { __wish?: { date?: { value: Date } } }
       if (w.__wish?.date)
         w.__wish.date.value = new Date(2026, 11, 25)
     })
+    // 等持久化寫入 localStorage
+    await expect.poll(() => readStorage(page, 'teru.date')).not.toBeNull()
 
     // When：reload
     await page.reload({ waitUntil: 'networkidle' })
 
-    // Then：date 為今天
+    // Then：date 仍為 2026-12-25（未過期的未來日會被還原）
     const snapshot = await readWish(page)
-    expect(snapshot.dateLocalDay).toBe(todayLocalDay())
+    expect(snapshot.dateLocalDay).toBe('2026-12-25')
   })
 })
 
 test.describe('規則：地點輸入', () => {
-  test('點選地點 chip 同步 input 並標 active', async ({ page }) => {
-    // Given：SetupScreen 已渲染、location 為空
-    await page.goto('/', { waitUntil: 'networkidle' })
-
-    // When：點擊「東京」chip
-    const tokyo = page.getByRole('button', { name: /^東京$/ })
-    await tokyo.click()
-
-    // Then：input value 為 "東京"
-    await expect(locationInput(page)).toHaveValue('東京')
-
-    // 「東京」chip 標示為 active
-    const isActive = await tokyo.evaluate(el =>
-      el.getAttribute('aria-pressed') === 'true'
-      || el.getAttribute('aria-checked') === 'true'
-      || el.getAttribute('data-active') === 'true'
-      || el.classList.contains('active')
-      || el.classList.contains('is-active'),
-    )
-    expect(isActive).toBe(true)
-
-    // 音效有觸發
-    await expect.poll(async () => (await readAudioSpy(page)).oscCount).toBeGreaterThan(0)
-  })
-
-  test('8 個地點 chip 依固定順序顯示', async ({ page }) => {
-    // Given：SetupScreen 已渲染
-    await page.goto('/', { waitUntil: 'networkidle' })
-
-    // When：蒐集 chips 文字
-    const chips = page.getByRole('button').filter({ hasText: new RegExp(`^(${LOCATION_CHIPS.join('|')})$`) })
-
-    // Then：依序為 8 個固定地點
-    await expect(chips).toHaveCount(8)
-    const texts = (await chips.allTextContents()).map(t => t.trim())
-    expect(texts).toEqual([...LOCATION_CHIPS])
-  })
-
   test('自由輸入地點寫入 useWishFlow.location 與 localStorage', async ({ page }) => {
     // Given：SetupScreen 已渲染
     await page.goto('/', { waitUntil: 'networkidle' })
@@ -234,17 +196,6 @@ test.describe('規則：地點輸入', () => {
 
     // Then：input 仍為 "京都"
     await expect(locationInput(page)).toHaveValue('京都')
-
-    // 京都 chip active
-    const kyoto = page.getByRole('button', { name: /^京都$/ })
-    const isActive = await kyoto.evaluate(el =>
-      el.getAttribute('aria-pressed') === 'true'
-      || el.getAttribute('aria-checked') === 'true'
-      || el.getAttribute('data-active') === 'true'
-      || el.classList.contains('active')
-      || el.classList.contains('is-active'),
-    )
-    expect(isActive).toBe(true)
   })
 })
 
@@ -605,7 +556,7 @@ test.describe('規則：Complete 三段動畫', () => {
 
     // When：等候 done 階段（~2200ms = 1900 + 容差）
     // Then：完成文字可見
-    await expect(page.getByText(/已經掛滿/)).toBeVisible({ timeout: 4000 })
+    await expect(page.getByText(/一定會是好天氣的/)).toBeVisible({ timeout: 4000 })
 
     // bloom 音效計數 +1（透過 method spy 或 oscillator 計數判斷）
     await expect.poll(async () => {
@@ -639,16 +590,6 @@ test.describe('規則：Complete 三段動畫', () => {
 })
 
 test.describe('規則：Complete 達成文案', () => {
-  test('副標顯示「25 隻晴天娃娃，已經掛滿」', async ({ page }) => {
-    // Given：完成全流程至 complete
-    await page.goto('/', { waitUntil: 'networkidle' })
-    await completeSetupAndEnterPraying(page, '台北')
-    await gotoPhase(page, 'complete')
-
-    // Then：完成副標顯示 25
-    await expect(page.getByText(/25\s*隻晴天娃娃，已經掛滿/)).toBeVisible({ timeout: 4000 })
-  })
-
   test('完成階段顯示祈禱對象資訊', async ({ page }) => {
     // Given：setup 輸入 "淡水"、完成至 complete
     await page.goto('/', { waitUntil: 'networkidle' })
@@ -668,7 +609,7 @@ test.describe('規則：重新祈禱', () => {
     await page.goto('/', { waitUntil: 'networkidle' })
     await completeSetupAndEnterPraying(page, '台北')
     await gotoPhase(page, 'complete')
-    await expect(page.getByText(/已經掛滿/)).toBeVisible({ timeout: 4000 })
+    await expect(page.getByText(/一定會是好天氣的/)).toBeVisible({ timeout: 4000 })
 
     const audioBefore = await readAudioSpy(page)
     const tokBefore = (await readAudioMethodCount(page)).tok
@@ -695,7 +636,7 @@ test.describe('規則：重新祈禱', () => {
     await startButton(page).click()
     await expect.poll(async () => (await readWish(page)).phase, { timeout: 3000 }).toBe('praying')
     await gotoPhase(page, 'complete')
-    await expect(page.getByText(/已經掛滿/)).toBeVisible({ timeout: 4000 })
+    await expect(page.getByText(/一定會是好天氣的/)).toBeVisible({ timeout: 4000 })
 
     // When：點「重新祈禱」
     await page.getByRole('button', { name: /重新祈禱/ }).click()
@@ -706,7 +647,7 @@ test.describe('規則：重新祈禱', () => {
     await expect.poll(() => readStorage(page, 'teru.location')).toBe('淡水')
   })
 
-  test('重新祈禱將日期重置為今天', async ({ page }) => {
+  test('重新祈禱保留先前日期', async ({ page }) => {
     // Given：setup 將 date 改為 2026/12/25，完成至 complete
     await page.goto('/', { waitUntil: 'networkidle' })
     await locationInput(page).fill('台北')
@@ -718,15 +659,15 @@ test.describe('規則：重新祈禱', () => {
     await startButton(page).click()
     await expect.poll(async () => (await readWish(page)).phase, { timeout: 3000 }).toBe('praying')
     await gotoPhase(page, 'complete')
-    await expect(page.getByText(/已經掛滿/)).toBeVisible({ timeout: 4000 })
+    await expect(page.getByText(/一定會是好天氣的/)).toBeVisible({ timeout: 4000 })
 
     // When：點重新祈禱
     await page.getByRole('button', { name: /重新祈禱/ }).click()
     await expect.poll(async () => (await readWish(page)).phase, { timeout: 3000 }).toBe('setup')
 
-    // Then：date 為今天
+    // Then：date 仍為先前選擇的 2026/12/25
     const snapshot = await readWish(page)
-    expect(snapshot.dateLocalDay).toBe(todayLocalDay())
+    expect(snapshot.dateLocalDay).toBe('2026-12-25')
   })
 })
 

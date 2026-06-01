@@ -234,7 +234,7 @@
 
 ### E2E 驗證流程
 1. 進入 `/`
-2. 觸發任一會呼叫 `pluck()` 的使用者操作（如點選地點 chip，會播 pluck(620)）
+2. 觸發任一會呼叫 `pluck()` 的使用者操作（如點選 theme dot，會播 pluck(700)）
 3. 期待：
    - 一個 AudioContext 被建立（計數為 1）
    - 若初始 state 為 suspended 則立即 resume
@@ -244,7 +244,7 @@
 - 或：檢查暴露的計數欄位
 
 ### 不再凍結
-- 哪個操作是「首次播放」的觸發點（chip / dot / start button 任一皆可）
+- 哪個操作是「首次播放」的觸發點（dot / 日期選擇 / start button 任一皆可）
 
 ---
 
@@ -279,7 +279,7 @@ SSR 階段驗證。E2E 通常已是 client-side hydrated，但需確保初次 se
 ### E2E 驗證流程
 1. 進入 `/`
 2. 呼叫 `setEnabled(false)`（透過 evaluate）
-3. 觸發任一原本會播音效的操作（如點 chip）
+3. 觸發任一原本會播音效的操作（如點 theme dot）
 4. 期待：
    - 不發出聲音
    - 不建立新的 oscillator 或 buffer source

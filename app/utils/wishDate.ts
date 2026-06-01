@@ -3,17 +3,6 @@
 
 export const WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六'] as const
 
-export const COMMON_LOCATIONS = [
-  '台北',
-  '台中',
-  '高雄',
-  '東京',
-  '大阪',
-  '京都',
-  '首爾',
-  '沖繩',
-] as const
-
 export function pad2(n: number): string {
   return String(n).padStart(2, '0')
 }

@@ -70,95 +70,34 @@ function setD(d: number) {
   pluck(660)
 }
 
-// Week strip refs
-const stripRef = ref<HTMLDivElement | null>(null)
-const dayRefs = ref<Record<number, HTMLDivElement | undefined>>({})
+// Week strip — 改用 Nuxt UI <UCarousel>(底層 Embla)
+// Embla 原生處理觸控軸向鎖定(只吃水平),解決手機上滑動時上下亂跑/回彈
+const carousel = useTemplateRef('carousel')
 
-// Week strip 拖曳 scroll(僅 mouse,touch 用瀏覽器原生 swipe)
-const dragState = {
-  active: false,
-  startX: 0,
-  startScroll: 0,
-  moved: 0,
-  pointerId: null as number | null,
-}
-const DRAG_THRESHOLD = 5 // px,超過視為拖曳並吞掉後續 click
-
-function onStripPointerDown(e: PointerEvent) {
-  if (e.pointerType !== 'mouse')
-    return
-  const strip = stripRef.value
-  if (!strip)
-    return
-  dragState.active = true
-  dragState.startX = e.clientX
-  dragState.startScroll = strip.scrollLeft
-  dragState.moved = 0
-  dragState.pointerId = null
-  // 不在這裡 setPointerCapture,否則純點擊也會被捕獲導致 .day click 事件不觸發
+// 取得 Embla 實例(UCarousel 對外曝露 emblaApi)
+function emblaApi() {
+  return (carousel.value as { emblaApi?: { scrollTo: (i: number, jump?: boolean) => void, clickAllowed?: () => boolean, on?: (e: string, cb: () => void) => void } } | null)?.emblaApi
 }
 
-function onStripPointerMove(e: PointerEvent) {
-  if (!dragState.active)
-    return
-  const strip = stripRef.value
-  if (!strip)
-    return
-  const dx = e.clientX - dragState.startX
-  dragState.moved = Math.abs(dx)
-  if (dragState.moved <= DRAG_THRESHOLD)
-    return
-  // 跨過 threshold 才真的算拖曳,這時才捕獲 pointer 讓拖出範圍仍能追蹤
-  if (dragState.pointerId === null) {
-    dragState.pointerId = e.pointerId
-    strip.setPointerCapture(e.pointerId)
-  }
-  strip.scrollLeft = dragState.startScroll - dx
-}
+// 選取日在 days 中的索引,供 Embla scrollTo 置中
+const selectedIndex = computed(() => days.value.findIndex(d => isSameDay(d, date.value)))
 
-function onStripPointerUp() {
-  if (!dragState.active)
+function scrollSelectedIntoCenter(jump = false) {
+  const api = emblaApi()
+  if (!api || selectedIndex.value < 0)
     return
-  const strip = stripRef.value
-  if (strip && dragState.pointerId !== null) {
-    strip.releasePointerCapture(dragState.pointerId)
-  }
-  dragState.active = false
-  dragState.pointerId = null
+  api.scrollTo(selectedIndex.value, jump)
 }
 
 function tapDay(d: Date) {
-  // 若剛剛是拖曳(超過 threshold),吞掉這次 click 避免誤選
-  if (dragState.moved > DRAG_THRESHOLD) {
-    dragState.moved = 0
+  // Embla 已判定剛剛是拖曳就不選取(避免滑動誤選)
+  const api = emblaApi()
+  if (api?.clickAllowed && !api.clickAllowed())
     return
-  }
   if (d < today.value)
     return
   date.value = new Date(d)
   pluck(720)
-}
-
-function setDayRef(d: Date, el: Element | ComponentPublicInstance | null) {
-  if (el instanceof HTMLDivElement) {
-    dayRefs.value[+d] = el
-  }
-}
-
-function scrollSelectedIntoCenter(behavior: ScrollBehavior = 'smooth') {
-  if (!import.meta.client)
-    return
-  const strip = stripRef.value
-  const el = dayRefs.value[+date.value]
-  if (!strip || !el)
-    return
-  const stripRect = strip.getBoundingClientRect()
-  const elRect = el.getBoundingClientRect()
-  const target = Math.max(0, strip.scrollLeft + (elRect.left - stripRect.left) - (stripRect.width / 2 - elRect.width / 2))
-  // 大跳轉(目標超過一個可視寬度)用 instant 瞬間到位,避免 smooth 滑過上百張日期卡的長距離動畫;
-  // 鄰近日期才用 smooth 保留手感。instant 必須明指,否則會被 CSS scroll-behavior: smooth 覆蓋
-  const isFarJump = Math.abs(target - strip.scrollLeft) > stripRect.width
-  strip.scrollTo({ left: target, behavior: isFarJump ? 'instant' : behavior })
 }
 
 // hydration 完成標記:用於 canStart 等依賴 localStorage 還原值的 binding
@@ -167,18 +106,42 @@ function scrollSelectedIntoCenter(behavior: ScrollBehavior = 'smooth') {
 // 以 mounted 閘控讓 SSR 與 client 首次 render 一致(皆 disabled),mount 後再反映真實狀態,
 // 使 mounted false→true 的 reactive 變化確實觸發 patch。
 const mounted = ref(false)
+// strip 顯示閘:SSR 會渲染未置中的日期格,先隱藏,等 Embla 置中到選取日後再淡入,
+// 避免使用者看到「今天偏左 → 跳到中央」的閃動
+const stripReady = ref(false)
+
+function initCarousel() {
+  const api = emblaApi()
+  if (!api)
+    return false
+  // 瞬間定位到選取日(含還原 localStorage 的日期 / re-pray)
+  scrollSelectedIntoCenter(true)
+  // days 延伸導致 Embla reInit 後,重新置中到選取日(避免格數變動後跑位)
+  api.on?.('reInit', () => scrollSelectedIntoCenter(true))
+  stripReady.value = true
+  return true
+}
 
 onMounted(() => {
   mounted.value = true
-  // 首次掛載(含 re-pray 回到 setup)直接瞬間定位到選取日,
-  // 避免從今天慢慢滑過去,讓 strip 一開始就呈現選取位置
-  nextTick(() => scrollSelectedIntoCenter('instant'))
+  // <ClientOnly> 內的 Embla 會晚一兩個 tick 才就緒,輪詢直到拿到 emblaApi 再置中並淡入,
+  // 確保 strip 一顯示就已置中於選取日(不會看到回到第一天的跑位)
+  nextTick(() => {
+    if (initCarousel())
+      return
+    const timer = setInterval(() => {
+      if (initCarousel())
+        clearInterval(timer)
+    }, 30)
+    setTimeout(clearInterval, 1500, timer)
+  })
 })
 
 watch(date, () => {
   if (!import.meta.client)
     return
-  nextTick(scrollSelectedIntoCenter)
+  // 日期變動可能讓 days 延伸並觸發 Embla reInit;用 nextTick + rAF 等 reInit 完成再置中
+  nextTick(() => requestAnimationFrame(() => scrollSelectedIntoCenter(true)))
 })
 
 // Theme dots — 每個圓圈疊一個不同的晴天娃娃表情
@@ -227,7 +190,7 @@ function handleStart() {
           :key="t.id"
           :aria-label="t.id"
           class="theme-dot"
-          :class="{ active: tweaks.themeColor === t.id }"
+          :class="{ active: mounted && tweaks.themeColor === t.id }"
           :style="{ background: t.color }"
           @click="pickTheme(t.id)"
         >
@@ -291,39 +254,42 @@ function handleStart() {
         </select>
       </div>
 
-      <div class="weekstrip-wrap">
-        <div
-          ref="stripRef"
-          class="weekstrip"
-          style="padding: 12px; cursor: grab;"
-          @pointerdown="onStripPointerDown"
-          @pointermove="onStripPointerMove"
-          @pointerup="onStripPointerUp"
-          @pointercancel="onStripPointerUp"
-        >
-          <div
-            v-for="d in days"
-            :key="+d"
-            :ref="(el) => setDayRef(d, el)"
-            class="day"
-            :class="{
-              'is-disabled': d < today,
-              'is-today': isSameDay(d, today),
-              'is-selected': isSameDay(d, date),
-            }"
-            @click="tapDay(d)"
+      <div class="weekstrip-wrap" :style="{ opacity: stripReady ? 1 : 0, transition: 'opacity 0.25s ease' }">
+        <!-- 日期軸完全依賴 localStorage 還原的日期,屬 client-only;
+             用 ClientOnly 避免 SSR(讀不到 localStorage)與 client 的格數不一致導致 Embla 跑位 -->
+        <ClientOnly>
+          <UCarousel
+            ref="carousel"
+            v-slot="{ item: d }"
+            :items="days"
+            :start-index="selectedIndex"
+            align="center"
+            :drag-free="true"
+            :contain-scroll="false"
+            class="weekstrip"
+            :ui="{ container: '-ms-2 py-3', item: 'ps-2 basis-auto' }"
           >
-            <div class="day-w">
-              {{ WEEKDAY_LABELS[d.getDay()] }}
+            <div
+              class="day"
+              :class="{
+                'is-disabled': d < today,
+                'is-today': isSameDay(d, today),
+                'is-selected': isSameDay(d, date),
+              }"
+              @click="tapDay(d)"
+            >
+              <div class="day-w">
+                {{ WEEKDAY_LABELS[d.getDay()] }}
+              </div>
+              <div class="day-d">
+                {{ d.getDate() }}
+              </div>
+              <div class="day-m">
+                {{ d.getMonth() + 1 }}月
+              </div>
             </div>
-            <div class="day-d">
-              {{ d.getDate() }}
-            </div>
-            <div class="day-m">
-              {{ d.getMonth() + 1 }}月
-            </div>
-          </div>
-        </div>
+          </UCarousel>
+        </ClientOnly>
       </div>
     </div>
 

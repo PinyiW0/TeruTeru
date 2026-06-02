@@ -115,7 +115,8 @@
 [data-font="round"] { --font: var(--font-round); }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+/* overscroll-behavior: none 關掉 iOS/行動瀏覽器的文件層級橡皮筋回彈(滑動時上下亂晃再彈回) */
+html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; overscroll-behavior: none; }
 
 body {
   font-family: var(--font);
@@ -237,6 +238,8 @@ html[data-weather="rainy"] body {
   padding: 24px 20px 24px;
   gap: 18px;
   overflow-y: auto;
+  /* 垂直捲動不外溢、不回彈,避免在日期軸上水平滑動時連帶上下晃動 */
+  overscroll-behavior: none;
 }
 .setup-header {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
@@ -328,21 +331,15 @@ html[data-weather="rainy"] body {
 .date-picker select:focus { outline: 2px solid var(--ink); outline-offset: 1px; }
 
 /* Week strip */
-.weekstrip-wrap { position: relative; }
+/* 預留 strip 高度,避免 ClientOnly 尚未渲染時版面跳動 */
+.weekstrip-wrap { position: relative; min-height: 92px; }
+/* .weekstrip 現為 UCarousel 根容器,捲動由底層 Embla 接管(觸控軸向鎖定 → 只吃水平) */
 .weekstrip {
-  display: flex; gap: 8px;
-  overflow-x: auto;
-  scroll-behavior: smooth;
-  scrollbar-width: none;
-  padding: 4px 12px 12px;
   margin: 0 -20px;
-  scroll-padding: 0 50%;
-  scroll-snap-type: x mandatory;
 }
-.weekstrip::-webkit-scrollbar { display: none; }
 .day {
   flex: 0 0 56px;
-  scroll-snap-align: center;
+  width: 56px;
   background: var(--surface);
   border: 1px solid var(--surface-border);
   border-radius: 14px;
@@ -355,9 +352,11 @@ html[data-weather="rainy"] body {
 .day-w { font-size: 10.5px; font-weight: 600; letter-spacing: 0.16em; color: var(--surface-text); opacity: 0.7; margin-bottom: 4px; }
 .day-d { font-size: 22px; font-weight: 700; color: var(--surface-text); font-variant-numeric: tabular-nums; line-height: 1; }
 .day-m { font-size: 10px; color: var(--surface-text); opacity: 0.55; margin-top: 2px; letter-spacing: 0.08em; }
-.day.is-today {
-  /* 不再用橘色實心高亮,只用選取色加深 border 來標示今天,避免突兀 */
-  border-color: var(--ink);
+/* 今天「未被選取」時維持與一般日期一致的外觀(不畫框、不上浮),
+   只靠下方加重的「今天」標籤標示,徹底不與選取狀態(白底上浮)競爭 */
+.day.is-today:not(.is-selected)::after {
+  color: var(--ink);
+  opacity: 0.75;
 }
 .day.is-today::after {
   content: "今天";

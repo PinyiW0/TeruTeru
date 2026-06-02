@@ -36,6 +36,14 @@
   --font:       var(--font-round);
 
   --radius:     16px;
+
+  /* 晴天娃娃領結繽紛色票(playful):晴空主題 → 暖色系六彩 */
+  --tie-1: #E27E6F;  /* 珊瑚紅 */
+  --tie-2: #F4B860;  /* 杏黃 */
+  --tie-3: #7CB1D6;  /* 天藍 */
+  --tie-4: #A485C9;  /* 藕紫 */
+  --tie-5: #7BB386;  /* 草綠 */
+  --tie-6: #E89BB0;  /* 櫻粉 */
 }
 
 /* 主題色 - 櫻花粉 */
@@ -60,6 +68,14 @@
   --surface-text:   #823F55;
   --surface-border: rgba(140, 65, 90, 0.16);
   --surface-strong: #F2C0CA;
+
+  /* 櫻花主題 → 桃粉色系六彩 */
+  --tie-1: #E2738A;  /* 玫紅 */
+  --tie-2: #F4A09C;  /* 蜜桃 */
+  --tie-3: #F6C667;  /* 暖黃 */
+  --tie-4: #B98BC9;  /* 薰衣草紫 */
+  --tie-5: #8FBFD9;  /* 霧藍 */
+  --tie-6: #E59CC4;  /* 櫻粉 */
 }
 
 /* 主題色 - 抹茶綠 */
@@ -84,6 +100,14 @@
   --surface-text:   #4F6038;
   --surface-border: rgba(75, 100, 50, 0.16);
   --surface-strong: #C8D8AC;
+
+  /* 抹茶主題 → 黃綠土橙色系六彩 */
+  --tie-1: #C97B53;  /* 赤陶橙 */
+  --tie-2: #E2B85A;  /* 芥黃 */
+  --tie-3: #7FB37A;  /* 嫩綠 */
+  --tie-4: #A8B85A;  /* 黃綠 */
+  --tie-5: #D98D8D;  /* 磚紅粉 */
+  --tie-6: #8FB0C4;  /* 灰藍 */
 }
 
 /* Font tweak */
@@ -495,6 +519,19 @@ html[data-weather="rainy"] body {
 @keyframes hang-sway {
   0%, 100% { transform: rotate(-3deg); }
   50%      { transform: rotate(3deg); }
+}
+
+/* 表情輪播:切換瞬間整張臉快速壓扁再回復,像眨一下後變臉 */
+.teru-face {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.teru-face.is-switching {
+  animation: teru-face-switch 0.3s ease;
+}
+@keyframes teru-face-switch {
+  0%, 100% { transform: scaleY(1); }
+  45%      { transform: scaleY(0.12); }
 }
 
 /* ─── Complete screen ─── */

@@ -207,6 +207,7 @@ function swayDelay(slot: number) {
           :doll-style="tweaks.dollStyle"
           :visual-style="tweaks.visualStyle"
           :size="DOLL_SCALE"
+          playful
         />
       </div>
     </div>

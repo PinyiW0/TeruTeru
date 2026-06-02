@@ -7,12 +7,15 @@ const props = withDefaults(defineProps<{
   visualStyle?: VisualStyle
   tieColor?: string
   size?: number
+  // 活潑模式:無視 dollStyle,以笑臉為主、五種表情錯雜呈現
+  playful?: boolean
 }>(), {
   index: 0,
   dollStyle: 'classic',
   visualStyle: 'flat',
   tieColor: undefined,
   size: 1,
+  playful: false,
 })
 // 1:1 port of spec/ui-config/ui-reference/teru.jsx::TeruDoll
 const DOLL_W = 60
@@ -28,16 +31,68 @@ const VARIED_FACES = [
   { kind: 'happy', mouth: 'smile' },
 ] as const
 
-const tie = computed(() =>
-  props.tieColor
-  ?? (props.dollStyle === 'varied' ? VARIED_TIES[props.index % VARIED_TIES.length] : 'var(--accent)'),
-)
+// 活潑表情組:3 種笑臉為主 + 2 種變化(驚喜、呆萌)點綴
+const PLAYFUL_FACES = [
+  { kind: 'dot', mouth: 'smile' }, // 0 微笑
+  { kind: 'happy', mouth: 'smile' }, // 1 開心彎眼笑
+  { kind: 'line', mouth: 'smile' }, // 2 瞇眼笑
+  { kind: 'dot', mouth: 'o' }, // 3 驚喜圓嘴
+  { kind: 'dot', mouth: 'flat' }, // 4 呆萌
+] as const
+// 錯雜出場序:笑臉(0/1/2)為主,驚喜/呆萌(3/4)少量穿插
+const PLAYFUL_ORDER = [0, 1, 3, 2, 0, 1, 0, 4, 2, 1, 3, 0, 2, 1, 0, 4, 1, 2, 0, 3]
 
-const face = computed(() =>
-  props.dollStyle === 'varied'
+const tie = computed(() => {
+  if (props.tieColor)
+    return props.tieColor
+  // playful:走隨主題變化的繽紛色票(--tie-1..6,定義於 teru.css)
+  if (props.playful)
+    return `var(--tie-${(props.index % 6) + 1})`
+  return props.dollStyle === 'varied'
+    ? VARIED_TIES[props.index % VARIED_TIES.length]
+    : 'var(--accent)'
+})
+
+// playful 表情輪播:從 index 對應的起點出發,定時往後切換(以笑臉為主的序列)
+const faceCursor = ref(props.index)
+// 切換瞬間的「變臉」擠壓過渡開關
+const switching = ref(false)
+
+const face = computed(() => {
+  if (props.playful) {
+    const i = ((faceCursor.value % PLAYFUL_ORDER.length) + PLAYFUL_ORDER.length) % PLAYFUL_ORDER.length
+    return PLAYFUL_FACES[PLAYFUL_ORDER[i]!]!
+  }
+  return props.dollStyle === 'varied'
     ? VARIED_FACES[props.index % VARIED_FACES.length]!
-    : { kind: 'dot' as const, mouth: 'smile' as const },
-)
+    : { kind: 'dot' as const, mouth: 'smile' as const }
+})
+
+let switchTimer: ReturnType<typeof setInterval> | null = null
+let squashTimer: ReturnType<typeof setTimeout> | null = null
+let restoreTimer: ReturnType<typeof setTimeout> | null = null
+
+onMounted(() => {
+  if (!import.meta.client || !props.playful)
+    return
+  // 每隻娃娃切換週期錯開(3.0~5.5s),避免整排同步變臉
+  const period = 3000 + (props.index % 6) * 500
+  switchTimer = setInterval(() => {
+    switching.value = true
+    // 在臉壓扁的中點換表情,視覺上像眨一下後變臉
+    squashTimer = setTimeout(() => (faceCursor.value += 1), 140)
+    restoreTimer = setTimeout(() => (switching.value = false), 300)
+  }, period)
+})
+
+onBeforeUnmount(() => {
+  if (switchTimer)
+    clearInterval(switchTimer)
+  if (squashTimer)
+    clearTimeout(squashTimer)
+  if (restoreTimer)
+    clearTimeout(restoreTimer)
+})
 
 const flipMul = computed(() => (props.index % 2 === 0 ? 1 : -1))
 
@@ -96,7 +151,12 @@ const tailPath = computed(() =>
       <ellipse cx="20" cy="28" rx="3.6" ry="2.4" fill="#F2A8A2" opacity="0.75" />
       <ellipse cx="40" cy="28" rx="3.6" ry="2.4" fill="#F2A8A2" opacity="0.75" />
 
-      <g data-role="face" :data-face="`${face.kind}-${face.mouth}`">
+      <g
+        data-role="face"
+        :data-face="`${face.kind}-${face.mouth}`"
+        class="teru-face"
+        :class="{ 'is-switching': switching }"
+      >
         <!-- 眼睛 -->
         <template v-if="face.kind === 'line'">
           <path d="M 23 22 L 27 22" stroke="#1F2A3A" stroke-width="1.6" stroke-linecap="round" />

@@ -12,23 +12,23 @@ export default defineConfig({
     ['html', { open: 'never' }],
   ],
   use: {
-    baseURL: process.env.E2E_BASE_URL || 'http://localhost:3001',
+    baseURL: process.env.E2E_BASE_URL || 'http://localhost:3030',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     locale: 'zh-TW',
-    viewport: { width: 1280, height: 720 },
+    viewport: { width: 430, height: 800 },
   },
   outputDir: 'test/e2e/test-results',
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], viewport: { width: 430, height: 800 } },
     },
   ],
   webServer: {
-    command: 'npx nuxt dev --port 3001',
-    url: 'http://localhost:3001',
-    reuseExistingServer: !process.env.CI,
+    command: 'npx nuxt dev --port 3030',
+    url: 'http://localhost:3030',
+    reuseExistingServer: false,
     timeout: 120000,
   },
 })

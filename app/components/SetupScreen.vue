@@ -145,7 +145,7 @@ function setDayRef(d: Date, el: Element | ComponentPublicInstance | null) {
   }
 }
 
-function scrollSelectedIntoCenter() {
+function scrollSelectedIntoCenter(behavior: ScrollBehavior = 'smooth') {
   if (!import.meta.client)
     return
   const strip = stripRef.value
@@ -154,8 +154,11 @@ function scrollSelectedIntoCenter() {
     return
   const stripRect = strip.getBoundingClientRect()
   const elRect = el.getBoundingClientRect()
-  const target = strip.scrollLeft + (elRect.left - stripRect.left) - (stripRect.width / 2 - elRect.width / 2)
-  strip.scrollTo({ left: Math.max(0, target), behavior: 'smooth' })
+  const target = Math.max(0, strip.scrollLeft + (elRect.left - stripRect.left) - (stripRect.width / 2 - elRect.width / 2))
+  // 大跳轉(目標超過一個可視寬度)用 instant 瞬間到位,避免 smooth 滑過上百張日期卡的長距離動畫;
+  // 鄰近日期才用 smooth 保留手感。instant 必須明指,否則會被 CSS scroll-behavior: smooth 覆蓋
+  const isFarJump = Math.abs(target - strip.scrollLeft) > stripRect.width
+  strip.scrollTo({ left: target, behavior: isFarJump ? 'instant' : behavior })
 }
 
 // hydration 完成標記:用於 canStart 等依賴 localStorage 還原值的 binding
@@ -167,7 +170,9 @@ const mounted = ref(false)
 
 onMounted(() => {
   mounted.value = true
-  nextTick(scrollSelectedIntoCenter)
+  // 首次掛載(含 re-pray 回到 setup)直接瞬間定位到選取日,
+  // 避免從今天慢慢滑過去,讓 strip 一開始就呈現選取位置
+  nextTick(() => scrollSelectedIntoCenter('instant'))
 })
 
 watch(date, () => {

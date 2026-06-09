@@ -9,6 +9,7 @@ const weather = computed(() => (phase.value === 'praying' || transition.value) ?
 // 將主題屬性同步到 documentElement,讓 CSS [data-theme="..."] selector 可從 html 起作用
 useHead(() => ({
   htmlAttrs: {
+    'lang': 'zh-Hant',
     'data-theme': tweaks.value.themeColor,
     'data-font': tweaks.value.fontStyle,
     'data-style': tweaks.value.visualStyle,

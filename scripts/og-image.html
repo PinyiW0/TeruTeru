@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Klee+One:wght@600&family=Zen+Maru+Gothic:wght@500;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1200px; height: 630px; }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Zen Maru Gothic', 'Klee One', sans-serif;
+    background: linear-gradient(180deg, #aee3ff 0%, #d6f0ff 45%, #fff7e0 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  /* 太陽 */
+  .sun {
+    position: absolute;
+    top: 70px; right: 110px;
+    width: 150px; height: 150px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, #ffe27a, #ffb347);
+    box-shadow: 0 0 60px 18px rgba(255, 196, 87, 0.55);
+  }
+  /* 雲 */
+  .cloud { position: absolute; background: #ffffff; border-radius: 100px; opacity: 0.9; }
+  .cloud::before, .cloud::after { content: ''; position: absolute; background: #fff; border-radius: 50%; }
+  .c1 { width: 220px; height: 70px; top: 120px; left: 110px; }
+  .c1::before { width: 90px; height: 90px; top: -40px; left: 40px; }
+  .c1::after { width: 120px; height: 120px; top: -55px; left: 100px; }
+  .c2 { width: 170px; height: 55px; top: 430px; left: 90px; opacity: 0.8; }
+  .c2::before { width: 70px; height: 70px; top: -30px; left: 30px; }
+  .c2::after { width: 90px; height: 90px; top: -40px; left: 80px; }
+
+  .teru { filter: drop-shadow(0 16px 18px rgba(120,120,140,0.18)); margin-bottom: 18px; }
+
+  h1 { font-size: 68px; color: #2f4858; letter-spacing: 2px; text-shadow: 0 2px 0 #fff; }
+  p { font-size: 30px; color: #5a7184; margin-top: 12px; font-weight: 500; }
+</style>
+</head>
+<body>
+  <div class="sun"></div>
+  <div class="cloud c1"></div>
+  <div class="cloud c2"></div>
+
+  <!-- 1:1 採用 app/components/TeruDoll.vue 的 classic 造型 + DollDefs 漸層 -->
+  <svg class="teru" width="215" height="330" viewBox="0 0 60 92" style="overflow: visible;">
+    <defs>
+      <radialGradient id="headShade" cx="0.35" cy="0.3" r="0.8">
+        <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9" />
+        <stop offset="55%" stop-color="#FFFFFF" stop-opacity="0" />
+        <stop offset="100%" stop-color="#A0B0C0" stop-opacity="0.4" />
+      </radialGradient>
+      <linearGradient id="bodyShade" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#D8DEE8" stop-opacity="0.5" />
+        <stop offset="55%" stop-color="#FFFFFF" stop-opacity="0" />
+        <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.6" />
+      </linearGradient>
+    </defs>
+
+    <!-- 上方繩線錨點 -->
+    <line x1="30" y1="0" x2="30" y2="10" stroke="#3A2A1A" stroke-width="1" stroke-linecap="round" />
+    <circle cx="30" cy="10" r="1.4" fill="#3A2A1A" />
+
+    <!-- 身體陰影 -->
+    <ellipse cx="30" cy="84" rx="16" ry="1.8" fill="rgba(40,60,90,0.10)" />
+
+    <!-- 身體(波浪下襬) -->
+    <path d="M 20 38 Q 14 54 12 76 Q 16 80 20 76 Q 24 82 28 76 Q 32 82 36 76 Q 40 82 44 76 Q 48 80 48 76 Q 46 54 40 38 Z"
+          fill="#FBFBFB" stroke="rgba(40,60,90,0.16)" stroke-width="0.8" />
+    <path d="M 20 38 Q 14 54 12 76 Q 16 80 20 76 Q 24 82 28 76 Q 32 82 36 76 Q 40 82 44 76 Q 48 80 48 76 Q 46 54 40 38 Z"
+          fill="url(#bodyShade)" opacity="0.55" />
+
+    <!-- 領結 -->
+    <rect x="17" y="36" width="26" height="4.6" rx="1.6" fill="#E27E6F" />
+    <rect x="17" y="36" width="26" height="1.2" rx="0.6" fill="rgba(255,255,255,0.45)" />
+    <path d="M 41 40 Q 47 42 46 47 L 43 45 Z" fill="#E27E6F" opacity="0.85" />
+
+    <!-- 頭 -->
+    <circle cx="30" cy="25" r="14.5" fill="#FEFEFE" stroke="rgba(40,60,90,0.14)" stroke-width="0.8" />
+    <circle cx="30" cy="25" r="14.5" fill="url(#headShade)" opacity="0.7" />
+
+    <!-- 雙頰 -->
+    <ellipse cx="20" cy="28" rx="3.6" ry="2.4" fill="#F2A8A2" opacity="0.75" />
+    <ellipse cx="40" cy="28" rx="3.6" ry="2.4" fill="#F2A8A2" opacity="0.75" />
+
+    <!-- 眼睛 + 微笑 -->
+    <ellipse cx="25" cy="22" rx="1.4" ry="1.7" fill="#1F2A3A" />
+    <ellipse cx="35" cy="22" rx="1.4" ry="1.7" fill="#1F2A3A" />
+    <path d="M 27.5 28 Q 30 30.5 32.5 28" stroke="#9B5346" stroke-width="1.2" stroke-linecap="round" fill="none" />
+  </svg>
+
+  <h1>Teru Teru 放晴吧！</h1>
+  <p>為一個日子、為一個地方，求一場好天氣 ☀️</p>
+</body>
+</html>
